@@ -30,7 +30,17 @@
             that.style.opacity = 1;
         }, 20);
     };
+    window.nameColor = "#FFFFFF"; // mặc định
 
+    if (window.currentPlayerId) {
+        fetch("ajax/get_color.php?id=" + window.currentPlayerId)
+            .then(response => response.text())
+            .then(color => {
+                if (color && color.startsWith("#")) {
+                    window.nameColor = color;
+                }
+            });
+    }
 var hats = {
     crown: new Image(),
     santa: new Image(),
@@ -920,123 +930,56 @@ for (var i = 0; i < (len - from); i++) {
         for (var score = 0, i = 0; i < playerCells.length; i++) score += playerCells[i].nSize * playerCells[i].nSize;
         return score
     }
-// Lấy userId từ session hoặc cookie (giả sử hàm này đã có sẵn)
-function getUserIdFromSessionOrCookie() {
-    return new Promise((resolve, reject) => {
-        fetch('/ajax/get_user_id.php', { method: 'POST' })
-            .then(response => response.text())
-            .then(data => {
-                const userId = parseInt(data);
-                if (isNaN(userId)) {
-                    reject('Invalid user ID');
+    function drawLeaderBoard() {
+        lbCanvas = null;
+        var drawTeam = null != teamScores;
+        if (drawTeam || 0 != leaderBoard.length)
+            if (drawTeam || showName) {
+                lbCanvas = document.createElement("canvas");
+                var ctx = lbCanvas.getContext("2d"),
+                    boardLength = 60;
+                boardLength = !drawTeam ? boardLength + 24 * leaderBoard.length : boardLength + 180;
+                var scaleFactor = Math.min(0.22 * canvasHeight, Math.min(200, .3 * canvasWidth)) * 0.005;
+                lbCanvas.width = 200 * scaleFactor;
+                lbCanvas.height = boardLength * scaleFactor;
+
+                ctx.scale(scaleFactor, scaleFactor);
+                ctx.globalAlpha = .4;
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, 200, boardLength);
+
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = "#FFFFFF";
+                var c = "Leaderboard";
+                ctx.font = "30px Ubuntu";
+                ctx.fillText(c, 100 - ctx.measureText(c).width * 0.5, 40);
+                var b, l;
+                if (!drawTeam) {
+                    for (ctx.font = "20px Ubuntu", b = 0, l = leaderBoard.length; b < l; ++b) {
+                        c = leaderBoard[b].name || "An unnamed cell";
+                        if (!showName) {
+                            (c = "An unnamed cell");
+                        }
+                        var me = -1 != nodesOnScreen.indexOf(leaderBoard[b].id);
+                        if (me) playerCells[0].name && (c = playerCells[0].name);
+                        me ? ctx.fillStyle = "#FFAAAA" : ctx.fillStyle = "#FFFFFF";
+                        if (!noRanking) c = b + 1 + ". " + c;
+                        var start = (ctx.measureText(c).width > 200) ? 2 : 100 - ctx.measureText(c).width * 0.5;
+                        ctx.fillText(c, start, 70 + 24 * b);
+                    }
                 } else {
-                    resolve(userId); // Trả về userId nếu hợp lệ
-                }
-            })
-            .catch(error => {
-                reject(error); // Nếu có lỗi trong fetch
-            });
-    });
-}
-
-function getColorName(userId) {
-    console.log("userId:", userId); // Kiểm tra giá trị userId
-
-    if (userId === null) {
-        console.log("Không có userId, trả về màu mặc định");
-        return Promise.resolve('#'); // Trả về màu mặc định nếu userId là null
-    }
-
-    return fetch(`/check_color_name.php?userId=${userId}`)
-        .then(response => {
-            console.log("Response status:", response.status); // Kiểm tra mã trạng thái HTTP
-            return response.json();
-        })
-        .then(data => {
-            console.log("Dữ liệu nhận được từ API:", data); // Kiểm tra dữ liệu trả về từ API
-
-            // Nếu không có lỗi và có màu sắc tên, trả về màu sắc từ API
-            if (data.color_name) {
-                console.log("Color Name:", data.color_name); // Kiểm tra màu sắc trả về từ API
-                return data.color_name;
-            } else {
-                console.error('Error:', data.error);
-                return ''; // Mặc định nếu có lỗi
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching color:', error);
-            return ''; // Mặc định nếu có lỗi
-        });
-}
-function drawLeaderBoard() {
-    console.log("Hàm drawLeaderBoard đang chạy");  // Kiểm tra xem hàm có được gọi không
-
-    // Giả sử bạn đã lấy được userId từ session hoặc cookie
-    getUserIdFromSessionOrCookie().then(userId => {
-        // Kiểm tra và lấy màu tên của người chơi
-        getColorName(userId).then((colorName) => {
-            lbCanvas = null;
-            var drawTeam = null != teamScores;
-            if (drawTeam || 0 != leaderBoard.length) {
-                if (drawTeam || showName) {
-                    lbCanvas = document.createElement("canvas");
-                    var ctx = lbCanvas.getContext("2d"),
-                        boardLength = 60;
-                    boardLength = !drawTeam ? boardLength + 24 * leaderBoard.length : boardLength + 180;
-                    var scaleFactor = Math.min(0.22 * canvasHeight, Math.min(200, .3 * canvasWidth)) * 0.005;
-                    lbCanvas.width = 200 * scaleFactor;
-                    lbCanvas.height = boardLength * scaleFactor;
-
-                    ctx.scale(scaleFactor, scaleFactor);
-                    ctx.globalAlpha = .4;
-                    ctx.fillStyle = "#000000";
-                    ctx.fillRect(0, 0, 200, boardLength);
-
-                    ctx.globalAlpha = 1;
-                    ctx.fillStyle = "#FFFFFF";
-                    var c = "Leaderboard";
-                    ctx.font = "30px Times New Roman";
-                    ctx.fillText(c, 100 - ctx.measureText(c).width * 0.5, 40);
-
-                    var b, l;
-                    if (!drawTeam) {
-                        for (ctx.font = "20px Times New Roman", b = 0, l = leaderBoard.length; b < l; ++b) {
-                            c = leaderBoard[b].name || "An unnamed cell";
-                            if (!showName) {
-                                c = "An unnamed cell";
-                            }
-                            var me = -1 != nodesOnScreen.indexOf(leaderBoard[b].id);
-                            if (leaderBoard[b].id === userId && colorName && colorName !== "#FFFFFF") {
-                                ctx.fillStyle = colorName;
-                            } else {
-                                ctx.fillStyle = "#FFFFFF";
-                            }
-
-                            if (!noRanking) c = b + 1 + ". " + c;
-                            var start = (ctx.measureText(c).width > 200) ? 2 : 100 - ctx.measureText(c).width * 0.5;
-                            ctx.fillText(c, start, 70 + 24 * b);
-                        }
-                    } else {
-                        for (b = c = 0; b < teamScores.length; ++b) {
-                            var d = c + teamScores[b] * Math.PI * 2;
-                            ctx.fillStyle = teamColor[b + 1];
-                            ctx.beginPath();
-                            ctx.moveTo(100, 140);
-                            ctx.arc(100, 140, 80, c, d, false);
-                            ctx.fill();
-                            c = d;
-                        }
+                    for (b = c = 0; b < teamScores.length; ++b) {
+                        var d = c + teamScores[b] * Math.PI * 2;
+                        ctx.fillStyle = teamColor[b + 1];
+                        ctx.beginPath();
+                        ctx.moveTo(100, 140);
+                        ctx.arc(100, 140, 80, c, d, false);
+                        ctx.fill();
+                        c = d
                     }
                 }
             }
-        }).catch((error) => {
-            console.log("Lỗi khi lấy màu:", error);
-        });
-    }).catch((error) => {
-        console.log("Lỗi khi lấy userId:", error);
-    });
-}
+    }
 
 
     function Cell(uid, ux, uy, usize, ucolor, uname, a) {
@@ -1269,15 +1212,17 @@ parseName: function(value) { // static method
     };
 },
 
-setName: function(a) {
+setName: function (a) {
     var nameAndSkin = Cell.prototype.parseName(a);
     this.name = nameAndSkin.name;
     this.skin = nameAndSkin.skin;
 
-   
-    var nameColor = (this.name === "CAOTUNG") ? "#FF0000" : "#FFFFFF";
+    // Kiểm tra nếu người chơi có màu riêng, nếu có thì áp dụng màu đó
+    var nameColor = window.nameColor || "#FFFFFF";
 
-    if (null == this.nameCache) {
+
+    // Cập nhật lại nameCache với màu tên mới
+    if (this.nameCache == null) {
         this.nameCache = new UText(this.getNameSize(), nameColor, true, "#000000");
         this.nameCache.setValue(this.name);
     } else {
@@ -1781,3 +1726,25 @@ drawOneCell: function (ctx) {
 	  username = localStorage.getItem('');
 	  $('#nick').val(username);
 	})
+// Khởi tạo màu mặc định cho tên của bạn
+window.myNameColor = "#FFFFFF";
+
+// Sự kiện load (đảm bảo DOM đã sẵn sàng)
+window.addEventListener("load", function () {
+    var picker = document.getElementById("colorNamePicker");
+    if (picker) {
+        picker.addEventListener("input", function (e) {
+            window.myNameColor = e.target.value;
+            console.log("Màu mới được chọn:", window.myNameColor);
+            // Cập nhật lại cell của người chơi nếu có
+            if (window.myCell) {
+                // Gọi lại hàm setName với tên hiện tại để refresh màu nameCache
+                window.myCell.setName(window.myCell.name);
+            } else {
+                console.warn("Không tìm thấy myCell để cập nhật màu tên!");
+            }
+        });
+    } else {
+        console.warn("Không tìm thấy color picker!");
+    }
+});
